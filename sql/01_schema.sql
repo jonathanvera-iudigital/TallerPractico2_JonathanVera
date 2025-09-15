@@ -1,6 +1,6 @@
 -- schema.sql (MySQL 8.0+)
 
--- Limpieza
+-- Se Limpia los triggers y tablas anteriores para evitar conflictos
 DROP TRIGGER IF EXISTS tr_docente_after_update;
 DROP TRIGGER IF EXISTS tr_docente_after_delete;
 
@@ -9,7 +9,7 @@ DROP TABLE IF EXISTS copia_actualizados_docente;
 DROP TABLE IF EXISTS proyecto;
 DROP TABLE IF EXISTS docente;
 
--- Tablas base
+-- Creación de tabla docente para almacenar información de los docentes
 CREATE TABLE docente (
   docente_id        INT AUTO_INCREMENT PRIMARY KEY,
   numero_documento  VARCHAR(20)  NOT NULL,
@@ -22,6 +22,7 @@ CREATE TABLE docente (
   CONSTRAINT ck_docente_anios CHECK (anios_experiencia >= 0)
 ) ENGINE=InnoDB;
 
+-- Creación de tabla proyecto para almacenar proyectos académicos
 CREATE TABLE proyecto (
   proyecto_id      INT AUTO_INCREMENT PRIMARY KEY,
   nombre           VARCHAR(120) NOT NULL,
@@ -38,7 +39,7 @@ CREATE TABLE proyecto (
     ON UPDATE CASCADE ON DELETE RESTRICT
 ) ENGINE=InnoDB;
 
--- Auditoría
+-- Tabla auditoría para copias de registros actualizados de docente
 CREATE TABLE copia_actualizados_docente (
   auditoria_id       INT AUTO_INCREMENT PRIMARY KEY,
   docente_id         INT NOT NULL,
@@ -52,6 +53,7 @@ CREATE TABLE copia_actualizados_docente (
   usuario_sql        VARCHAR(128) NOT NULL DEFAULT (CURRENT_USER())
 ) ENGINE=InnoDB;
 
+-- Tabla auditoría para copias de registros eliminados de docente
 CREATE TABLE copia_eliminados_docente (
   auditoria_id       INT AUTO_INCREMENT PRIMARY KEY,
   docente_id         INT NOT NULL,
@@ -65,12 +67,13 @@ CREATE TABLE copia_eliminados_docente (
   usuario_sql        VARCHAR(128) NOT NULL DEFAULT (CURRENT_USER())
 ) ENGINE=InnoDB;
 
--- Procedimientos DOCENTE
+-- Se eliminan los procedimientos almacenados antiguos para evitar conflicto
 DROP PROCEDURE IF EXISTS sp_docente_crear;
 DROP PROCEDURE IF EXISTS sp_docente_leer;
 DROP PROCEDURE IF EXISTS sp_docente_actualizar;
 DROP PROCEDURE IF EXISTS sp_docente_eliminar;
 
+-- Procedimiento para crear un docente
 DELIMITER $$
 CREATE PROCEDURE sp_docente_crear(
   IN p_numero_documento VARCHAR(20),
@@ -86,11 +89,13 @@ BEGIN
   SELECT LAST_INSERT_ID() AS docente_id_creado;
 END$$
 
+-- Procedimiento para leer un docente por ID
 CREATE PROCEDURE sp_docente_leer(IN p_docente_id INT)
 BEGIN
   SELECT * FROM docente WHERE docente_id = p_docente_id;
 END$$
 
+-- Procedimiento para actualizar un docente
 CREATE PROCEDURE sp_docente_actualizar(
   IN p_docente_id       INT,
   IN p_numero_documento VARCHAR(20),
@@ -112,17 +117,19 @@ BEGIN
   SELECT * FROM docente WHERE docente_id = p_docente_id;
 END$$
 
+-- Procedimiento para eliminar un docente
 CREATE PROCEDURE sp_docente_eliminar(IN p_docente_id INT)
 BEGIN
   DELETE FROM docente WHERE docente_id = p_docente_id;
 END$$
 
--- Procedimientos PROYECTO
+-- Se eliminan los procedimientos almacenados de proyectos
 DROP PROCEDURE IF EXISTS sp_proyecto_crear;
 DROP PROCEDURE IF EXISTS sp_proyecto_leer;
 DROP PROCEDURE IF EXISTS sp_proyecto_actualizar;
 DROP PROCEDURE IF EXISTS sp_proyecto_eliminar;
 
+-- Procedimiento para crear un proyecto
 CREATE PROCEDURE sp_proyecto_crear(
   IN p_nombre           VARCHAR(120),
   IN p_descripcion      VARCHAR(400),
@@ -138,6 +145,7 @@ BEGIN
   SELECT LAST_INSERT_ID() AS proyecto_id_creado;
 END$$
 
+-- Procedimiento para leer un proyecto por ID y mostrar nombre del docente jefe
 CREATE PROCEDURE sp_proyecto_leer(IN p_proyecto_id INT)
 BEGIN
   SELECT p.*, d.nombres AS nombre_docente_jefe
@@ -146,6 +154,7 @@ BEGIN
   WHERE p.proyecto_id = p_proyecto_id;
 END$$
 
+-- Procedimiento para actualizar un proyecto
 CREATE PROCEDURE sp_proyecto_actualizar(
   IN p_proyecto_id      INT,
   IN p_nombre           VARCHAR(120),
@@ -169,12 +178,13 @@ BEGIN
   CALL sp_proyecto_leer(p_proyecto_id);
 END$$
 
+-- Procedimiento para eliminar un proyecto
 CREATE PROCEDURE sp_proyecto_eliminar(IN p_proyecto_id INT)
 BEGIN
   DELETE FROM proyecto WHERE proyecto_id = p_proyecto_id;
 END$$
 
--- UDF
+-- Función para calcular el promedio del presupuesto por docente
 DROP FUNCTION IF EXISTS fn_promedio_presupuesto_por_docente;
 CREATE FUNCTION fn_promedio_presupuesto_por_docente(p_docente_id INT)
 RETURNS DECIMAL(12,2)
@@ -188,7 +198,7 @@ BEGIN
   RETURN IFNULL(v_prom,0);
 END$$
 
--- Triggers
+-- Trigger para auditoría después de actualización en docente
 CREATE TRIGGER tr_docente_after_update
 AFTER UPDATE ON docente
 FOR EACH ROW
@@ -199,6 +209,7 @@ BEGIN
     (NEW.docente_id, NEW.numero_documento, NEW.nombres, NEW.titulo, NEW.anios_experiencia, NEW.direccion, NEW.tipo_docente);
 END$$
 
+-- Trigger para auditoría después de eliminación en docente
 CREATE TRIGGER tr_docente_after_delete
 AFTER DELETE ON docente
 FOR EACH ROW
@@ -211,6 +222,6 @@ END$$
 
 DELIMITER ;
 
--- Índices
+-- Índices para optimización de consultas
 CREATE INDEX ix_proyecto_docente ON proyecto(docente_id_jefe);
 CREATE INDEX ix_docente_documento ON docente(numero_documento);
